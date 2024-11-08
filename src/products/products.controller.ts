@@ -6,11 +6,14 @@ import {
   Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { ProductService } from './products.service';
 import { Product } from './schemas/product.schema';
 import { createProductDto } from './dto/create-product.dto';
 import { updateProductDto } from './dto/update-product.dto';
+
+import { Query as ExpressQuery } from 'express-serve-static-core';
 
 @Controller('products')
 export class ProductsController {
@@ -18,8 +21,12 @@ export class ProductsController {
   constructor(private productService: ProductService) { }
 
   @Get()
-  async getAllProducts(): Promise<Product[]> {
-    return this.productService.findAll();
+  async getAllProducts(@Query() query: ExpressQuery): Promise<{
+    products: Product[];
+    totalPages: number;
+    totalProducts: number;
+  }> {
+    return this.productService.findAll(query);
   }
 
   @Get(':id')
