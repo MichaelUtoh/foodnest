@@ -1,0 +1,19 @@
+# Core
+fastapi
+motor
+python-decouple
+pydantic[email]
+PyJWT
+passlib
+uvicorn[standard]
+watchdog
+
+# Testing
+pytest
+httpx
+
+# Code Quality
+black
+flake8
+isort
+pre-commit

@@ -1,0 +1,17 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/usr/src/app
+    depends_on:
+      - database
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  database:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
