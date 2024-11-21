@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.auth import AuthHandler
 from app.core._id import PyObjectId
+from app.core.services import transform_mongo_data
 from app.core.database import get_database
 from app.accounts.schemas import (
     UserLoginResponseSchema,
@@ -102,7 +103,7 @@ async def get_user(
     ):
         raise HTTPException(status_code=ERROR_CODE, detail="Not allowed, contact admin")
 
-    user["id"] = str(user["_id"])
+    user = transform_mongo_data(user)
     return user
 
 
@@ -130,7 +131,7 @@ async def update_user_role(
 
     await db["users"].update_one({"_id": PyObjectId(id)}, {"$set": payload})
     updated_user = await db["users"].find_one({"_id": PyObjectId(id)})
-    updated_user["id"] = str(updated_user["_id"])
+    updated_user = transform_mongo_data(updated_user)
     return updated_user
 
 
@@ -148,7 +149,7 @@ async def update_user(
     payload["updated_at"] = datetime.now()
     await db["users"].update_one({"_id": PyObjectId(id)}, {"$set": payload})
     updated_user = await db["users"].find_one({"_id": PyObjectId(id)})
-    updated_user["id"] = str(updated_user["_id"])
+    transform_mongo_data(update_user)
     return updated_user
 
 

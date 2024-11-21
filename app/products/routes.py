@@ -16,6 +16,7 @@ from app.core.auth import AuthHandler
 from app.core._id import PyObjectId
 from app.core.database import get_database
 from app.core.pagination import paginate
+from app.core.services import transform_mongo_data
 
 ERROR_CODE = status.HTTP_404_NOT_FOUND
 auth_handler = AuthHandler()
@@ -61,7 +62,7 @@ async def create_product(
 
     new_product = await db["products"].insert_one(product.dict(by_alias=True))
     created_product = await db["products"].find_one({"_id": new_product.inserted_id})
-    created_product["id"] = str(created_product["_id"])
+    created_product = transform_mongo_data(created_product)
     return created_product
 
 
@@ -85,5 +86,5 @@ async def update_product(
 
     new_product = await db["products"].insert_one(product.dict(by_alias=True))
     created_product = await db["products"].find_one({"_id": new_product.inserted_id})
-    created_product["id"] = str(created_product["_id"])
+    created_product = transform_mongo_data(created_product)
     return created_product

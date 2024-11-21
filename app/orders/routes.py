@@ -154,4 +154,4 @@ async def delete_order(
         msg = "Not allowed, contact Administrator"
         raise HTTPException(status_code=403, detail=msg)
 
-    order = await db["orders"].delete_one({"_id": PyObjectId(id)})
+    await db["orders"].delete_one({"_id": PyObjectId(id)})
