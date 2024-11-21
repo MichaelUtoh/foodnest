@@ -4,6 +4,12 @@ from enum import Enum
 from pydantic import BaseModel
 
 
+class ProductStatus(str, Enum):
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+    RESTOCK = "restock"
+
+
 class ProductCategory(str, Enum):
     GRAINS = "grains"
     VEGETABLES = "vegetables"
@@ -18,10 +24,11 @@ class ProductCreateSchema(BaseModel):
     description: str
     category: str
     unit: str
-    price_per_unit: str
+    price_per_unit: float
     stock_quantity: str
     seller_id: str
     is_available: bool = True
+    created_at: datetime = datetime.now()
 
 
 class ProductDetailSchema(BaseModel):
@@ -29,7 +36,7 @@ class ProductDetailSchema(BaseModel):
     name: str
     description: str
     category: str
-    price_per_unit: str
+    price_per_unit: float
     stock_quantity: str
     unit: str
     seller_id: str

@@ -9,24 +9,35 @@ from app.core._id import PyObjectId
 
 class OrderStatus(str, Enum):
     PENDING = "pending"
+    CONFIRMED = "confirmed"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
 
 class OrderItem(BaseModel):
     product_id: str
-    product_name: str
     quantity: int
-    price_per_unit: float
 
 
-class Order(BaseModel):
+class OrderItemDetail(BaseModel):
+    order_id: str
+    product_id: str
+    product_description: str
+    product_name: str
+    price: float
+    quantity: int
+    subtotal: float
+
+
+class OrderDetailSchema(BaseModel):
     id: Optional[str] = Field(default_factory=PyObjectId, alias="_id")
     buyer_id: str = Field(..., description="The Retailer who placed the order")
-    seller_id: str = Field(..., description="The Wholesaler selling the products")
-    items: List[OrderItem]
-    total_price: float = 0.0
+    items: List[OrderItemDetail]
+    total_price: float
     status: OrderStatus = OrderStatus.PENDING
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
+
+class OrderCreateSchema(BaseModel):
+    items: List[OrderItem]

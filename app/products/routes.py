@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.accounts.models import UserRole
+from app.accounts.permissions import hasAdminPermission, hasCreateProductPermission
 from app.accounts.services import get_current_user
 from app.products.schemas import (
     ProductCreateSchema,
@@ -53,7 +53,7 @@ async def create_product(
         raise HTTPException(status_code=403, detail="Product already exists.")
 
     req_user = await get_current_user(current_user, db)
-    if req_user["role"] not in [UserRole.WHOLESALER, UserRole.ADMIN]:
+    if not hasCreateProductPermission(req_user):
         raise HTTPException(
             status_code=403,
             detail="Only wholesalers or admins can perform this action.",
@@ -78,12 +78,10 @@ async def update_product(
 
     req_user = await get_current_user(current_user, db)
     if not (
-        (req_user["role"] == UserRole.ADMIN)
-        or req_user["_id"] == product_in_db["seller_id"]
+        hasAdminPermission(req_user) or req_user["_id"] == product_in_db["seller_id"]
     ):
-        raise HTTPException(
-            status_code=403, detail="Only admins can perform this action."
-        )
+        msg = "Only admins or product owner can perform this action."
+        raise HTTPException(status_code=403, detail=msg)
 
     new_product = await db["products"].insert_one(product.dict(by_alias=True))
     created_product = await db["products"].find_one({"_id": new_product.inserted_id})

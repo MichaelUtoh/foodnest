@@ -4,7 +4,15 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.accounts.models import UserRole
+
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    WHOLESALER = "wholesaler"
+    RETAILER = "retailer"
+    DISPATCH = "dispatch"
 
 
 class UserLoginSchema(BaseModel):
