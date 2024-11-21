@@ -11,13 +11,17 @@ from app.accounts.schemas import (
     UserLoginSchema,
     UserRegisterSchema,
     UserUpdateSchema,
+    UserUpdateRoleSchema,
     UserInfoResponseSchema,
 )
 from app.accounts.services import get_current_user
 
 ERROR_CODE = status.HTTP_404_NOT_FOUND
 auth_handler = AuthHandler()
-router = APIRouter(prefix="/auth/user")
+router = APIRouter(
+    prefix="/auth/user",
+    tags=["Authentication"],
+)
 
 
 @router.post(
@@ -71,21 +75,63 @@ async def create_user(
     new_user = await db["users"].find_one({"_id": res.inserted_id})
 
     return {
-        "email": user.email,
+        "id": str(new_user["_id"]),
+        "email": new_user["email"],
         "access_token": auth_handler.encode_token(new_user["email"]),
         "refresh_token": auth_handler.encode_refresh_token(new_user["email"]),
     }
 
 
 @router.get("/{id}", response_model=UserInfoResponseSchema)
-async def get_user(id: str, db: AsyncIOMotorDatabase = Depends(get_database)):
+async def get_user(
+    id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user=Depends(auth_handler.auth_wrapper),
+):
     user = await db["users"].find_one({"_id": PyObjectId(id)})
+    req_user = await get_current_user(current_user, db)
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
+
+    if (
+        not req_user.get("role") == "admin"
+        or not req_user.get("email") == user["email"]
+    ):
+        raise HTTPException(status_code=ERROR_CODE, detail="Not allowed, contact admin")
+
     user["id"] = str(user["_id"])
     return user
+
+
+@router.patch("/{id}/role", response_model=UserInfoResponseSchema)
+async def update_user_role(
+    id: str,
+    payload: UserUpdateRoleSchema,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user=Depends(auth_handler.auth_wrapper),
+):
+    req_user = await get_current_user(current_user, db)
+    user = await db["users"].find_one({"_id": PyObjectId(id)})
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    if not req_user.get("role") or not req_user.get("role") == "admin":
+        raise HTTPException(status_code=ERROR_CODE, detail="Not allowed, contact admin")
+
+    payload = payload.dict(exclude_unset=True)
+    payload["updated_at"] = datetime.now()
+    payload["last_updated_by"] = req_user.get("id")
+
+    await db["users"].update_one({"_id": PyObjectId(id)}, {"$set": payload})
+    updated_user = await db["users"].find_one({"_id": PyObjectId(id)})
+    updated_user["id"] = str(updated_user["_id"])
+    return updated_user
 
 
 @router.patch("/{id}", response_model=UserInfoResponseSchema)
@@ -118,7 +164,7 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=ERROR_CODE, detail="User not found")
 
-    if not req_user["is_admin"]:
+    if not req_user.role == "admin":
         raise HTTPException(status_code=ERROR_CODE, detail="Not allowed, contact admin")
 
     await db["users"].delete_one({"_id": PyObjectId(id)})

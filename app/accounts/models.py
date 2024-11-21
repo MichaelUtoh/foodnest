@@ -24,12 +24,13 @@ class User(BaseModel):
     last_name: Optional[str]
     phone: Optional[str]
     address: Optional[str]
-    role: str
+    role: UserRole
     is_active: bool = True
     is_admin: bool = False
     last_login: datetime = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+    last_updated_by: str
 
     class Config:
         populate_by_name = True

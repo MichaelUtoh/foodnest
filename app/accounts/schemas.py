@@ -20,9 +20,13 @@ class UserRegisterSchema(BaseModel):
     last_name: Optional[str]
     phone: Optional[str]
     address: Optional[str]
-    role: str = UserRole.RETAILER
+    role: UserRole = UserRole.RETAILER
     is_active: bool = True
     is_admin: bool = False
+
+
+class UserUpdateRoleSchema(BaseModel):
+    role: UserRole = UserRole.RETAILER
 
 
 class UserUpdateSchema(BaseModel):
@@ -49,7 +53,7 @@ class UserInfoResponseSchema(BaseModel):
     phone: Optional[str]
     address: Optional[str]
     is_active: bool
-    is_admin: bool
+    role: UserRole
     created_at: datetime
 
     class Config:
