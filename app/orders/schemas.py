@@ -41,3 +41,8 @@ class OrderDetailSchema(BaseModel):
 
 class OrderCreateSchema(BaseModel):
     items: List[OrderItem]
+
+
+class OrderUpdateSchema(BaseModel):
+    id: str
+    items: List[OrderItem]

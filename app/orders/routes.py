@@ -13,14 +13,10 @@ from app.accounts.services import get_current_user
 from app.core._id import PyObjectId
 from app.core.auth import AuthHandler
 from app.core.database import get_database
+from app.core.helpers import transform_mongo_data
 from app.core.pagination import paginate
-from app.orders.schemas import (
-    OrderCreateSchema,
-    OrderDetailSchema,
-    OrderItemDetail,
-    OrderStatus,
-)
-from app.core.services import transform_mongo_data
+from app.orders.schemas import OrderCreateSchema, OrderItemDetail, OrderUpdateSchema
+from app.orders.services import order_create_job, order_update_job
 
 ERROR_CODE = status.HTTP_404_NOT_FOUND
 auth_handler = AuthHandler()
@@ -89,49 +85,13 @@ async def create_order(
         msg = "Not allowed, contact Administrator"
         raise HTTPException(status_code=403, detail=msg)
 
-    order_items = payload.dict()["items"]
-    order_item_list = []
-
-    order_data = {
-        "buyer_id": req_user["_id"],
-        "items": [],
-        "created_at": datetime.now(),
-        "updated_at": datetime.now(),
-        "status": OrderStatus.PENDING,
-        "total_price": 0.0,
-    }
-    order = await db["orders"].insert_one(order_data)
-
-    for item in order_items:
-        product = await db["products"].find_one({"_id": PyObjectId(item["product_id"])})
-        item_info = {
-            "order_id": str(order.inserted_id),
-            "product_id": item["product_id"],
-            "product_name": product["name"],
-            "product_description": product["description"],
-            "price": float(product["price_per_unit"]),
-            "quantity": item["quantity"],
-            "subtotal": float(product["price_per_unit"]) * item["quantity"],
-        }
-        order_item_list.append(item_info)
-
-    await db["orders"].update_one(
-        {"_id": PyObjectId(order.inserted_id)},
-        {
-            "$push": {"items": {"$each": [item for item in order_item_list]}},
-            "$set": {
-                "updated_at": datetime.now(),
-                "total_price": sum([item["subtotal"] for item in order_item_list]),
-            },
-        },
-    )
+    order_item_list = await order_create_job(req_user, payload, db)
     return order_item_list
 
 
-@router.patch("/{id}")
+@router.patch("")
 async def update_order(
-    id: str,
-    payload: OrderCreateSchema,
+    payload: OrderUpdateSchema,
     current_user=Depends(auth_handler.auth_wrapper),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
@@ -140,7 +100,33 @@ async def update_order(
         msg = "Not allowed, contact Administrator"
         raise HTTPException(status_code=403, detail=msg)
 
-    return payload.dict()
+    order = payload.dict()
+    existing_order = await db["orders"].find_one({"_id": PyObjectId(order["id"])})
+
+    if not existing_order:
+        msg = "Order does not exist."
+        raise HTTPException(status_code=403, detail=msg)
+
+    if (
+        hasRetailerPermission(req_user)
+        and not req_user["_id"] == existing_order["buyer_id"]
+    ):
+        msg = "Not allowed, contact Administrator"
+        raise HTTPException(status_code=403, detail=msg)
+
+    order_list = []
+    order_item_list = await order_update_job(order, order_list, order["items"], db)
+    await db["orders"].update_one(
+        {"_id": PyObjectId(order["id"])},
+        {
+            "$set": {
+                "items": order_item_list,
+                "updated_at": datetime.now(),
+                "total_price": sum([item["subtotal"] for item in order_item_list]),
+            }
+        },
+    )
+    return {"details": "Order Updated successfully"}
 
 
 @router.delete("/{id}")

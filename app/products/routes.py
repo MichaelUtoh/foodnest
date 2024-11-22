@@ -10,13 +10,14 @@ from app.products.schemas import (
     ProductCreateSchema,
     ProductDetailSchema,
     ProductCategory,
+    ProductStatus,
 )
 from app.products.services import get_products_response
 from app.core.auth import AuthHandler
 from app.core._id import PyObjectId
 from app.core.database import get_database
+from app.core.helpers import transform_mongo_data
 from app.core.pagination import paginate
-from app.core.services import transform_mongo_data
 
 ERROR_CODE = status.HTTP_404_NOT_FOUND
 auth_handler = AuthHandler()
@@ -30,7 +31,12 @@ async def get_products(
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    query = {"category": category} if category else {}
+    query = (
+        {"status": ProductStatus.AVAILABLE, "category": category}
+        if category
+        else {"status": ProductStatus.AVAILABLE}
+    )
+
     products = await db["products"].find(query).to_list(length=None)
     cleaned = get_products_response(products)
     paginated_response = paginate(cleaned, page=page, page_size=page_size)

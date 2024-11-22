@@ -5,8 +5,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.auth import AuthHandler
 from app.core._id import PyObjectId
-from app.core.services import transform_mongo_data
 from app.core.database import get_database
+from app.core.helpers import transform_mongo_data
 from app.accounts.schemas import (
     UserLoginResponseSchema,
     UserLoginSchema,
