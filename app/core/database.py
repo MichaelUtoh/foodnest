@@ -1,7 +1,9 @@
 import motor.motor_asyncio
 from decouple import config
 
-DATABASE_URL = config("MONGO_DB_URL")
+from app.core import settings
+
+DATABASE_URL = settings.MONGO_DB_URL
 client = motor.motor_asyncio.AsyncIOMotorClient(DATABASE_URL)
 db = client.foodnest_db
 

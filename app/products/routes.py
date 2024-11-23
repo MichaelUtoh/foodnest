@@ -1,14 +1,23 @@
-from datetime import datetime
-from typing import List, Optional
+import uuid
+import shutil
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import cloudinary
+import cloudinary.uploader
+from cloudinary.utils import cloudinary_url
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.accounts.permissions import hasAdminPermission, hasCreateProductPermission
+from app.accounts.permissions import (
+    hasAdminPermission,
+    hasCreateProductPermission,
+    hasWholeSalerPermission,
+)
 from app.accounts.services import get_current_user
 from app.products.schemas import (
     ProductCreateSchema,
     ProductDetailSchema,
+    ProductImageSchema,
     ProductCategory,
     ProductStatus,
 )
@@ -18,10 +27,17 @@ from app.core._id import PyObjectId
 from app.core.database import get_database
 from app.core.helpers import transform_mongo_data
 from app.core.pagination import paginate
+from app.core import settings
 
 ERROR_CODE = status.HTTP_404_NOT_FOUND
 auth_handler = AuthHandler()
 router = APIRouter(prefix="/products", tags=["Products"])
+
+cloudinary.config(
+    cloud_name=settings.CLOUD_NAME,
+    api_key=settings.CLOUDINARY_API_KEY,
+    api_secret=settings.CLOUDINARY_API_SECRET,
+)
 
 
 @router.get("/")
@@ -94,3 +110,60 @@ async def update_product(
     created_product = await db["products"].find_one({"_id": new_product.inserted_id})
     created_product = transform_mongo_data(created_product)
     return created_product
+
+
+@router.post("/{id}/images/", response_model=ProductImageSchema)
+async def upload_product_image(
+    id: str,
+    file: UploadFile = File(...),
+    current_user=Depends(auth_handler.auth_wrapper),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    product = await db["products"].find_one({"_id": PyObjectId(id)})
+    req_user = await get_current_user(current_user, db)
+    if not hasCreateProductPermission(req_user):
+        raise HTTPException(status_code=400, detail="Not allowed, contact admin")
+
+    if (
+        hasWholeSalerPermission(req_user)
+        and not req_user["_id"] == product["seller_id"]
+    ):
+        raise HTTPException(status_code=400, detail="Not allowed, contact admin")
+
+    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+        raise HTTPException(
+            status_code=400, detail="Invalid file type. Only JPEG and PNG are allowed."
+        )
+
+    alt_text = f"{file.filename.split('.')[0]}.{file.filename.split('.')[-1]}"
+    file_name = f"{uuid.uuid4()}"
+    res = cloudinary.uploader.upload(file.file, public_id=file_name)
+    image_url = res.get("url")
+
+    image = await db["product_images"].insert_one(
+        {"product_id": str(product["_id"]), "url": image_url, "alt_text": alt_text}
+    )
+    new_image = await db["product_images"].find_one({"_id": image.inserted_id})
+    new_image = transform_mongo_data(new_image)
+    return new_image
+
+
+@router.delete("/{id}/images")
+async def delete_product_image(
+    id: str,
+    image_id: str,
+    current_user=Depends(auth_handler.auth_wrapper),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    product = await db["products"].find_one({"_id": PyObjectId(id)})
+    req_user = await get_current_user(current_user, db)
+    if not hasCreateProductPermission(req_user):
+        raise HTTPException(status_code=400, detail="Not allowed, contact admin")
+
+    if (
+        hasWholeSalerPermission(req_user)
+        and not req_user["_id"] == product["seller_id"]
+    ):
+        raise HTTPException(status_code=400, detail="Not allowed, contact admin")
+
+    db["product_images"].delete_one({"_id": PyObjectId(image_id)})

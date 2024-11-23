@@ -1,17 +1,19 @@
 # Core
 bcrypt
+cloudinary
 fastapi
 motor
 python-decouple
 pydantic[email]
 PyJWT
 passlib
+python-multipart
 uvicorn[standard]
 watchdog
 
 # Testing
-pytest
 httpx
+pytest
 
 # Code Quality
 black

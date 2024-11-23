@@ -6,11 +6,13 @@ from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
 
+from app.core import settings
+
 
 class AuthHandler:
     security = HTTPBearer()
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    secret = config("SECRET_KEY")
+    secret = settings.SECRET_KEY
 
     def get_password_hash(self, password):
         return self.pwd_context.hash(password)
@@ -21,7 +23,7 @@ class AuthHandler:
     def encode_token(self, user_id):
         payload = {
             "exp": datetime.now()
-            + timedelta(days=0, minutes=int(config("ACCESS_TOKEN_EXPIRE_MINUTES"))),
+            + timedelta(days=0, minutes=int(settings.ACCESS_TOKEN_EXPIRE_MINUTES)),
             "iat": datetime.now(),
             "sub": user_id,
         }
@@ -30,7 +32,7 @@ class AuthHandler:
     def encode_refresh_token(self, user_id):
         payload = {
             "exp": datetime.now()
-            + timedelta(days=int(config("REFRESH_TOKEN_EXPIRE_DAYS")), minutes=0),
+            + timedelta(days=int(settings.REFRESH_TOKEN_EXPIRE_DAYS), minutes=0),
             "iat": datetime.now(),
             "sub": user_id,
         }
