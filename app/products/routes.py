@@ -67,7 +67,10 @@ async def get_products(
         },
     ]
     products_with_images = await db["products"].aggregate(pipeline).to_list(length=None)
-    return transform_mongo_data(products_with_images)
+    paginated_response = paginate(
+        transform_mongo_data(products_with_images), page=page, page_size=page_size
+    )
+    return paginated_response
 
 
 @router.post("", response_model=ProductDetailSchema)
