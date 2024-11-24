@@ -1,5 +1,6 @@
 import uuid
 import shutil
+from datetime import datetime
 from typing import Optional
 
 import cloudinary
@@ -7,6 +8,7 @@ import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from app.accounts.permissions import (
     hasAdminPermission,
@@ -53,10 +55,19 @@ async def get_products(
         else {"status": ProductStatus.AVAILABLE}
     )
 
-    products = await db["products"].find(query).to_list(length=None)
-    cleaned = get_products_response(products)
-    paginated_response = paginate(cleaned, page=page, page_size=page_size)
-    return paginated_response
+    pipeline = [
+        {"$match": query},
+        {
+            "$lookup": {
+                "from": "product_images",
+                "localField": "_id",
+                "foreignField": "product_id",
+                "as": "images",
+            }
+        },
+    ]
+    products_with_images = await db["products"].aggregate(pipeline).to_list(length=None)
+    return transform_mongo_data(products_with_images)
 
 
 @router.post("", response_model=ProductDetailSchema)
@@ -141,10 +152,21 @@ async def upload_product_image(
     image_url = res.get("url")
 
     image = await db["product_images"].insert_one(
-        {"product_id": str(product["_id"]), "url": image_url, "alt_text": alt_text}
+        {
+            "product_id": product["_id"],
+            "url": image_url,
+            "alt_text": alt_text,
+            "created_at": datetime.now(),
+        }
     )
     new_image = await db["product_images"].find_one({"_id": image.inserted_id})
     new_image = transform_mongo_data(new_image)
+
+    await db["products"].find_one_and_update(
+        {"_id": PyObjectId(id)},
+        {"$push": {"images": new_image}},
+        return_document=ReturnDocument.AFTER,
+    )
     return new_image
 
 
