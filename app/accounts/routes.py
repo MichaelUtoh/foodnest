@@ -99,7 +99,7 @@ async def get_user(
 
     if (
         not req_user.get("role") == "admin"
-        or not req_user.get("email") == user["email"]
+        and not req_user.get("email") == user["email"]
     ):
         raise HTTPException(status_code=ERROR_CODE, detail="Not allowed, contact admin")
 
