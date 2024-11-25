@@ -1,5 +1,7 @@
 # Core
 bcrypt
+boto3
+botocore
 cloudinary
 fastapi
 motor
@@ -8,6 +10,7 @@ pydantic[email]
 PyJWT
 passlib
 python-multipart
+requests
 uvicorn[standard]
 watchdog
 
