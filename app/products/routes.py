@@ -42,17 +42,27 @@ cloudinary.config(
 )
 
 
-@router.get("/")
+@router.get("")
 async def get_products(
     category: Optional[ProductCategory] = None,
+    status: Optional[ProductStatus] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
+    product_status = (
+        {"$in": ["available"]}
+        if status == "available"
+        else (
+            {"$in": ["unavailable"]}
+            if status == "unavailable"
+            else {"$in": ["available", "unavailable"]}
+        )
+    )
     query = (
-        {"status": ProductStatus.AVAILABLE, "category": category}
+        {"status": product_status, "category": category}
         if category
-        else {"status": ProductStatus.AVAILABLE}
+        else {"status": product_status}
     )
 
     pipeline = [
