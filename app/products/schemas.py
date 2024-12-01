@@ -8,7 +8,7 @@ from pydantic import BaseModel, HttpUrl
 class ProductStatus(str, Enum):
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
-    RESTOCK = "restock"
+    RESTOCK = "out of stock"
 
 
 class ProductCategory(str, Enum):
