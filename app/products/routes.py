@@ -42,6 +42,16 @@ cloudinary.config(
 )
 
 
+@router.get("/{id}")
+async def get_single_product(
+    id: str,
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    product = await db["products"].find_one({"_id": PyObjectId(id)})
+    product = transform_mongo_data(product)
+    return product
+
+
 @router.get("")
 async def get_products(
     category: Optional[ProductCategory] = None,
@@ -56,7 +66,7 @@ async def get_products(
         else (
             {"$in": ["unavailable"]}
             if status == "unavailable"
-            else {"$in": ["available", "unavailable"]}
+            else {"$in": ["available", "unavailable", "out of stock"]}
         )
     )
     query = (
