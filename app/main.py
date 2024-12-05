@@ -9,7 +9,7 @@ from app.orders.routes import router as orders_router
 from app.core.database import init_db
 from app.core import settings
 
-origins = ["http://localhost:5173"]
+origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 app = FastAPI(docs_url="/swagger", title="Foodnest")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(accounts_router, prefix="/api/v1")

@@ -63,7 +63,7 @@ class UserInfoResponseSchema(BaseModel):
     is_active: bool
     role: UserRole
     created_at: datetime
-    image_url: Optional[str]
+    image_url: Optional[str] = None
 
     class Config:
         from_attributes = True
