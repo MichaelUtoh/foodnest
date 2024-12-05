@@ -1,7 +1,12 @@
+import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, status, Depends
+import cloudinary
+import cloudinary.uploader
+from cloudinary.utils import cloudinary_url
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from app.core.auth import AuthHandler
 from app.core._id import PyObjectId
@@ -69,7 +74,7 @@ async def create_user(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
-    user_dict = user.dict()
+    user_dict = user.model_dump()
     user_dict["password"] = auth_handler.get_password_hash(user.password)
     user_dict["created_at"] = user_dict["updated_at"] = datetime.now()
     res = await db["users"].insert_one(user_dict)
@@ -169,3 +174,33 @@ async def delete_user(
         raise HTTPException(status_code=ERROR_CODE, detail="Not allowed, contact admin")
 
     await db["users"].delete_one({"_id": PyObjectId(id)})
+
+
+@router.post("/{id}/images/")
+async def upload_user_image(
+    id: str,
+    file: UploadFile = File(...),
+    current_user=Depends(auth_handler.auth_wrapper),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user = await db["users"].find_one({"_id": PyObjectId(id)})
+    req_user = await get_current_user(current_user, db)
+
+    if not req_user["_id"] == user["_id"]:
+        raise HTTPException(status_code=400, detail="Not allowed, contact admin")
+
+    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+        raise HTTPException(
+            status_code=400, detail="Invalid file type. Only JPEG and PNG are allowed."
+        )
+
+    file_name = f"{uuid.uuid4()}"
+    res = cloudinary.uploader.upload(file.file, public_id=file_name)
+    image_url = res.get("url")
+
+    await db["users"].find_one_and_update(
+        {"_id": PyObjectId(id)},
+        {"$set": {"image_url": image_url}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return {"detail": "Uploaded image successfully"}
