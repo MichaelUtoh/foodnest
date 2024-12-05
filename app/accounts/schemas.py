@@ -2,7 +2,7 @@ from typing import Optional
 from bson import ObjectId
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, HttpUrl
 
 
 from enum import Enum
@@ -63,6 +63,7 @@ class UserInfoResponseSchema(BaseModel):
     is_active: bool
     role: UserRole
     created_at: datetime
+    image_url: Optional[str] = None
 
     class Config:
         from_attributes = True
