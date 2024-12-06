@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
+from typing import List
 
 import cloudinary
 import cloudinary.uploader
 from cloudinary.utils import cloudinary_url
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
@@ -12,6 +13,8 @@ from app.core.auth import AuthHandler
 from app.core._id import PyObjectId
 from app.core.database import get_database
 from app.core.helpers import transform_mongo_data
+from app.core.pagination import paginate
+from app.accounts.permissions import hasAdminPermission
 from app.accounts.schemas import (
     UserLoginResponseSchema,
     UserLoginSchema,
@@ -19,13 +22,14 @@ from app.accounts.schemas import (
     UserUpdateSchema,
     UserUpdateRoleSchema,
     UserInfoResponseSchema,
+    UserInfoPaginatedResponseSchema,
 )
 from app.accounts.services import get_current_user
 
 ERROR_CODE = status.HTTP_404_NOT_FOUND
 auth_handler = AuthHandler()
 router = APIRouter(
-    prefix="/auth/user",
+    prefix="/auth/users",
     tags=["Authentication"],
 )
 
@@ -110,6 +114,28 @@ async def get_user(
 
     user = transform_mongo_data(user)
     return user
+
+
+@router.get(
+    "",
+    response_model=UserInfoPaginatedResponseSchema,
+)
+async def admin_get_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+    current_user=Depends(auth_handler.auth_wrapper),
+):
+    req_user = await get_current_user(current_user, db)
+    if not hasAdminPermission(req_user):
+        msg = "Only admins are allowed to perform this action."
+        raise HTTPException(status_code=400, detail=msg)
+
+    users = await db["users"].find().to_list(length=None)
+    paginated_response = paginate(
+        transform_mongo_data(users), page=page, page_size=page_size
+    )
+    return paginated_response
 
 
 @router.patch("/{id}/role", response_model=UserInfoResponseSchema)
