@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, List, Optional
 from bson import ObjectId
 from datetime import datetime
 
@@ -67,3 +67,8 @@ class UserInfoResponseSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserInfoPaginatedResponseSchema(BaseModel):
+    items: List[UserInfoResponseSchema]
+    meta: Dict
