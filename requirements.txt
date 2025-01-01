@@ -1,18 +1,22 @@
 # Core
+authlib
 bcrypt
 boto3
 botocore
 cloudinary
 fastapi
 motor
-python-decouple
+passlib
+pillow
 pydantic[email]
 PyJWT
-passlib
+pyotp
+python-decouple
+python-jose
 python-multipart
+qrcode
 requests
 uvicorn[standard]
-watchdog
 
 # Testing
 httpx

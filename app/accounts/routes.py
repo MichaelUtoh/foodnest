@@ -16,6 +16,7 @@ from app.core.helpers import transform_mongo_data
 from app.core.pagination import paginate
 from app.accounts.permissions import hasAdminPermission
 from app.accounts.schemas import (
+    MFARequest,
     UserLoginResponseSchema,
     UserLoginSchema,
     UserRegisterSchema,
@@ -24,7 +25,12 @@ from app.accounts.schemas import (
     UserInfoResponseSchema,
     UserInfoPaginatedResponseSchema,
 )
-from app.accounts.services import get_current_user
+from app.accounts.services import (
+    disable_user_mfa,
+    get_current_user,
+    generate_mfa_qrcode,
+    verify_2fa_otp,
+)
 
 ERROR_CODE = status.HTTP_404_NOT_FOUND
 auth_handler = AuthHandler()
@@ -230,3 +236,56 @@ async def upload_user_image(
         return_document=ReturnDocument.AFTER,
     )
     return {"detail": "Uploaded image successfully"}
+
+
+@router.get("")
+async def get_dashboard_data(
+    current_user=Depends(auth_handler.auth_wrapper),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    data = {}
+    return data
+
+
+@router.post("/generate_mfa_secret")
+async def generate_mfa_secret(
+    current_user=Depends(auth_handler.auth_wrapper),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user = await db["users"].find_one({"email": current_user})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    qr_code, setup_key = await generate_mfa_qrcode(user, db)
+    return {"qr_code": qr_code, "setup_key": setup_key}
+
+
+@router.post("/disable_mfa")
+async def disable_mfa(
+    current_user=Depends(auth_handler.auth_wrapper),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user = await db["users"].find_one({"email": current_user})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    await disable_user_mfa
+    return {"detail": "MFA has been disabled for this user."}
+
+
+@router.post("/configure_mfa")
+async def configure_mfa(
+    data: MFARequest,
+    current_user=Depends(auth_handler.auth_wrapper),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    user = await db["users"].find_one({"email": current_user})
+    print("••• ", user)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    verified = await verify_2fa_otp(user, data.otp_code, db)
+    if not verified:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"detail": "MFA configured successfully"}

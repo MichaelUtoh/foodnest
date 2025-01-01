@@ -32,6 +32,12 @@ class UserRegisterSchema(BaseModel):
     is_active: bool = True
     is_admin: bool = False
 
+    mfa_secret: Optional[str] = None
+    mfa_enabled: bool = False
+
+    def __str__(self):
+        return self.email
+
 
 class UserUpdateRoleSchema(BaseModel):
     role: UserRole = UserRole.RETAILER
@@ -43,6 +49,7 @@ class UserUpdateSchema(BaseModel):
     last_name: Optional[str]
     phone: Optional[str]
     address: Optional[str]
+    role: Optional[UserRole] = None
 
 
 class UserLoginResponseSchema(BaseModel):
@@ -64,6 +71,7 @@ class UserInfoResponseSchema(BaseModel):
     role: UserRole
     created_at: datetime
     image_url: Optional[str] = None
+    mfa_enabled: bool = False
 
     class Config:
         from_attributes = True
@@ -72,3 +80,7 @@ class UserInfoResponseSchema(BaseModel):
 class UserInfoPaginatedResponseSchema(BaseModel):
     items: List[UserInfoResponseSchema]
     meta: Dict
+
+
+class MFARequest(BaseModel):
+    otp_code: str
